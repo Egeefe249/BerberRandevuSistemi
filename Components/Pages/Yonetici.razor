@@ -1,0 +1,156 @@
+﻿@page "/yonetici"
+@rendermode InteractiveServer
+@using BerberRandevuSistemi.Models
+@using BerberRandevuSistemi.Services
+@inject RandevuServisi Servis
+@inject NavigationManager NavManager
+
+<div class="container mt-5 mb-5">
+    @if (Servis.AktifBerber == null || Servis.AktifBerber.DukkanAdi == "Müşteri Hesabı")
+    {
+        <div class="alert alert-danger text-center p-4 rounded-4 shadow bg-dark border-danger text-white">
+            <h4>⚠️ Bu sayfaya erişmek için yetkiniz yok! Bu alan sadece berberler içindir.</h4>
+            <a href="/" class="btn btn-warning mt-3 fw-bold px-4">🏠 Randevu Ekranına Dön</a>
+        </div>
+    }
+    else
+    {
+        <div class="card p-4 shadow bg-dark text-white rounded-4 border-secondary">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="m-0 text-warning">🛠️ Berber Yönetim Paneli</h2>
+                    <p class="text-info m-0 mt-1">Hoş Geldiniz, <strong>@Servis.AktifBerber.DukkanAdi</strong></p>
+                </div>
+                <div>
+                    <a href="/" class="btn btn-outline-light btn-sm me-2">🌐 Müşteri Ekranı</a>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="CikisYap">🚪 Çıkış Yap</button>
+                </div>
+            </div>
+
+            <!-- Boş Saat Ekleme ve Silme Alanı -->
+            <div class="mb-4 p-3 bg-secondary rounded-3">
+                <h4 class="mb-3 text-light">⏰ Müsait Saatler Yönetimi</h4>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control bg-dark text-white border-0" @bind="yeniSaat" placeholder="Örn: 16:30" />
+                    <button class="btn btn-success fw-bold px-4" @onclick="SaatEkle">Saat Ekle</button>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    @if (Servis.AktifBerber.AktifBosSaatler.Count == 0)
+                    {
+                        <span class="text-warning small">Henüz eklenmiş müsait saat yok.</span>
+                    }
+                    else
+                    {
+                        @foreach (var saat in Servis.AktifBerber.AktifBosSaatler.ToList())
+                        {
+                            <span class="badge bg-dark border border-light p-2 text-white fs-6 d-flex align-items-center gap-2">
+                                🕒 @saat
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" @onclick="() => SaatSil(saat)">✖</button>
+                            </span>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Müşterilerden Gelen Randevu Talepleri -->
+            <div class="p-3 bg-secondary rounded-3">
+                <h4 class="mb-3 text-light">📋 Gelen Randevu Talepleri</h4>
+                @if (Servis.AktifBerber.RandevuListesi.Count == 0)
+                {
+                    <p class="text-warning m-0">Henüz gelen bir randevu talebi yok.</p>
+                }
+                else
+                {
+                    <div class="list-group">
+                        @foreach (var randevu in Servis.AktifBerber.RandevuListesi)
+                        {
+                            <div class="list-group-item bg-dark text-white border-secondary mb-2 rounded-3 d-flex justify-content-between align-items-center p-3">
+                                <div>
+                                    <h5 class="mb-1 text-info">🔔 @randevu.MusteriAdi, @randevu.RandevuTarihi.ToString("HH:mm") saatine randevu aldı!</h5>
+                                    <p class="mb-1 text-light small">📞 Telefon: @randevu.Telefon</p>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    @if (randevu.OnaylandiMi)
+                                    {
+                                        <span class="badge bg-success px-3 py-2">Onaylandı</span>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-success fw-bold" @onclick="() => RandevuOnayla(randevu)">Onayla</button>
+                                    }
+                                    <button class="btn btn-sm btn-outline-danger fw-bold" @onclick="() => RandevuSil(randevu)">Sil</button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string yeniSaat = "";
+
+    protected override void OnInitialized()
+    {
+        if (Servis.AktifBerber == null)
+        {
+            NavManager.NavigateTo("/giris", true);
+        }
+        else if (Servis.AktifBerber.DukkanAdi == "Müşteri Hesabı")
+        {
+            NavManager.NavigateTo("/", true);
+        }
+    }
+
+    private void SaatEkle()
+    {
+        if (!string.IsNullOrWhiteSpace(yeniSaat) && Servis.AktifBerber != null)
+        {
+            if (!Servis.AktifBerber.AktifBosSaatler.Contains(yeniSaat))
+            {
+                Servis.AktifBerber.AktifBosSaatler.Add(yeniSaat);
+                yeniSaat = "";
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void SaatSil(string saat)
+    {
+        if (Servis.AktifBerber != null)
+        {
+            Servis.AktifBerber.AktifBosSaatler.Remove(saat);
+            StateHasChanged();
+        }
+    }
+
+    private void RandevuOnayla(Randevu randevu)
+    {
+        randevu.OnaylandiMi = true;
+        StateHasChanged();
+    }
+
+    private void RandevuSil(Randevu randevu)
+    {
+        if (Servis.AktifBerber != null)
+        {
+            Servis.AktifBerber.RandevuListesi.Remove(randevu);
+
+            string saatStr = randevu.RandevuTarihi.ToString("HH:mm");
+            if (!Servis.AktifBerber.AktifBosSaatler.Contains(saatStr))
+            {
+                Servis.AktifBerber.AktifBosSaatler.Add(saatStr);
+            }
+            StateHasChanged();
+        }
+    }
+
+    private void CikisYap()
+    {
+        Servis.AktifBerber = null;
+        NavManager.NavigateTo("/giris", true);
+    }
+}

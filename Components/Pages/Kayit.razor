@@ -1,0 +1,100 @@
+﻿@page "/kayit"
+@rendermode InteractiveServer
+@using BerberRandevuSistemi.Models
+@using BerberRandevuSistemi.Services
+@inject RandevuServisi Servis
+@inject NavigationManager NavManager
+
+<div class="container mt-5" style="max-width: 450px;">
+    <div class="card p-4 shadow bg-dark text-white rounded-4 border-secondary">
+        <h3 class="text-center mb-4 text-warning">📝 Kayıt Ekranı</h3>
+
+        @if (!string.IsNullOrEmpty(mesaj))
+        {
+            <div class="alert alert-danger py-2">@mesaj</div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label">Kayıt Türü</label>
+            <select class="form-control bg-dark text-white border-secondary" @bind="rol">
+                <option value="Musteri">Müşteri (Randevu Alacağım)</option>
+                <option value="Berber">Berber (Dükkan Sahibiyim)</option>
+            </select>
+        </div>
+
+        @if (rol == "Berber")
+        {
+            <div class="mb-3">
+                <label class="form-label">Dükkan Adı</label>
+                <input type="text" class="form-control bg-dark text-white border-secondary" @bind="dukkanAdi" placeholder="Örn: Karizma Erkek Kuaförü" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Dükkan Telefonu</label>
+                <input type="text" class="form-control bg-dark text-white border-secondary" @bind="dukkanTelefon" placeholder="Örn: 05554443322" />
+            </div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label">Kullanıcı Adı</label>
+            <input type="text" class="form-control bg-dark text-white border-secondary" @bind="kullaniciAdi" placeholder="Örn: kullaniciadi" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Şifre</label>
+            <input type="password" class="form-control bg-dark text-white border-secondary" @bind="sifre" placeholder="Şifreniz" />
+        </div>
+
+        <button class="btn btn-success w-100 fw-bold py-2 mb-3" @onclick="KayıtOl">Kayıt Ol ve Giriş Yap</button>
+
+        <div class="text-center">
+            <a href="/giris" class="text-decoration-none text-info fw-bold small">Zaten hesabın var mı? Giriş Yap →</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string rol = "Musteri";
+    private string dukkanAdi = "";
+    private string dukkanTelefon = "";
+    private string kullaniciAdi = "";
+    private string sifre = "";
+    private string mesaj = "";
+
+    private void KayıtOl()
+    {
+        if (string.IsNullOrWhiteSpace(kullaniciAdi) || string.IsNullOrWhiteSpace(sifre) || (rol == "Berber" && (string.IsNullOrWhiteSpace(dukkanAdi) || string.IsNullOrWhiteSpace(dukkanTelefon))))
+        {
+            mesaj = "Lütfen tüm alanları doldurun!";
+            return;
+        }
+
+        bool varMi = Servis.Berberler.Any(b => b.KullaniciAdi.ToLower() == kullaniciAdi.ToLower());
+        if (varMi)
+        {
+            mesaj = "Bu kullanıcı adı zaten alınmış, başka bir tane seçin.";
+            return;
+        }
+
+        var yeniBerber = new BerberKullanici
+        {
+            Id = Servis.Berberler.Count + 1,
+            DukkanAdi = rol == "Berber" ? dukkanAdi : "Müşteri Hesabı",
+            Telefon = rol == "Berber" ? dukkanTelefon : "",
+            KullaniciAdi = kullaniciAdi,
+            Sifre = sifre
+        };
+
+        Servis.Berberler.Add(yeniBerber);
+        Servis.AktifBerber = yeniBerber;
+
+        if (rol == "Berber")
+        {
+            NavManager.NavigateTo("/yonetici");
+        }
+        else
+        {
+            NavManager.NavigateTo("/");
+        }
+    }
+}

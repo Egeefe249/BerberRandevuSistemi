@@ -1,0 +1,173 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using BerberRandevuSistemi.Models
+@using BerberRandevuSistemi.Services
+@inject RandevuServisi Servis
+
+<div class="container mt-5 mb-5">
+    <div class="card p-4 shadow bg-dark text-white rounded-4 border-secondary">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="m-0">💈 Berber Randevu Sistemi</h2>
+
+            @if (Servis.AktifBerber != null)
+            {
+                <a href="/yonetici" class="btn btn-outline-warning btn-sm">🔑 Berber Paneli (@Servis.AktifBerber.DukkanAdi)</a>
+            }
+        </div>
+
+        <!-- Müşteri Randevu Formu -->
+        <div class="mb-4 p-3 bg-secondary rounded-3">
+            <h4 class="mb-3 text-info">✂ Randevu Al</h4>
+
+            <div class="mb-3">
+                <label class="form-label">Berber Seçin</label>
+                <select class="form-select bg-dark text-white border-0" @onchange="BerberDegisti">
+                    @foreach (var berber in Servis.Berberler.Where(b => b.DukkanAdi != "Müşteri Hesabı"))
+                    {
+                        <option value="@berber.Id">@berber.DukkanAdi</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mb-2">
+                <label class="form-label">Ad Soyad</label>
+                <input type="text" class="form-control bg-dark text-white border-0" @bind="yeniMusteri" placeholder="Örn: Ahmet Yılmaz" />
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Telefon</label>
+                <input type="text" class="form-control bg-dark text-white border-0" @bind="yeniTelefon" placeholder="0555..." />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label d-block">Müsait Saat Seç:</label>
+                @if (seciliBerber == null || seciliBerber.AktifBosSaatler.Count == 0)
+                {
+                    <span class="text-warning">Şu an için bu berber tarafından açılmış boş saat yok!</span>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var saat in seciliBerber.AktifBosSaatler)
+                        {
+                            <button type="button" class="btn @(secilenSaat == saat ? "btn-light fw-bold text-dark" : "btn-outline-light")"
+                                    @onclick="() => SaatSec(saat)">
+                                @saat
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+
+            <button type="button" class="btn btn-danger w-100 fw-bold mt-2 py-2" @onclick="RandevuOlustur">Randevu Talebi Gönder</button>
+        </div>
+
+        <!-- Randevu Sonuç ve Durum Takibi -->
+        @if (!string.IsNullOrEmpty(sonRandevuMesaji))
+        {
+            <div class="alert alert-success mt-3 shadow-sm" role="alert">
+                <strong>@sonRandevuMesaji</strong>
+            </div>
+        }
+
+        @if (aktifRandevum != null)
+        {
+            <div class="mt-3 p-3 bg-dark border @(aktifRandevum.OnaylandiMi ? "border-success" : "border-warning") rounded-3">
+                <h5 class="mb-2">Randevu Durumunuz:</h5>
+                <p class="mb-2">
+                    Saat: <strong>@aktifRandevum.RandevuTarihi.ToString("HH:mm")</strong> |
+                    Durum: <span class="@(aktifRandevum.OnaylandiMi ? "text-success fw-bold" : "text-warning fw-bold")">
+                    @(aktifRandevum.OnaylandiMi ? "✅ Berber Randevunuzu Onayladı!" : "⏳ Onay Bekliyor...")
+                </span>
+            </p>
+            <button class="btn btn-sm btn-outline-danger w-100 fw-bold" @onclick="RandevuyuIptalEt">Randevuyu İptal Et</button>
+        </div>
+    }
+
+    <div class="mt-4 p-3 bg-secondary rounded-3">
+        <p class="text-light small">Randevu saatiniz yaklaştığında dükkanı arayabilir veya doğrudan yol tarifine bakabilirsiniz:</p>
+        <div class="d-flex gap-2">
+            @if (seciliBerber != null && !string.IsNullOrEmpty(seciliBerber.Telefon))
+            {
+                <a href="tel:@seciliBerber.Telefon" class="btn btn-success fw-bold flex-grow-1">📞 Berberi Ara (@seciliBerber.Telefon)</a>
+            }
+            else
+            {
+                <a href="#" class="btn btn-success fw-bold flex-grow-1 disabled">📞 Telefon Belirtilmemiş</a>
+            }
+            <a href="https://maps.google.com" target="_blank" class="btn btn-outline-light flex-grow-1">📍 Yol Tarifi Al</a>
+        </div>
+    </div>
+</div>
+</div>
+
+@code {
+    private BerberKullanici? seciliBerber;
+    private string yeniMusteri = "";
+    private string yeniTelefon = "";
+    private string secilenSaat = "";
+    private string sonRandevuMesaji = "";
+    private Randevu? aktifRandevum;
+
+    protected override void OnInitialized()
+    {
+        var ilkBerber = Servis.Berberler.FirstOrDefault(b => b.DukkanAdi != "Müşteri Hesabı");
+        if (ilkBerber != null)
+        {
+            seciliBerber = ilkBerber;
+        }
+    }
+
+    private void BerberDegisti(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int berberId))
+        {
+            seciliBerber = Servis.Berberler.FirstOrDefault(b => b.Id == berberId);
+            secilenSaat = "";
+            aktifRandevum = null;
+            sonRandevuMesaji = "";
+        }
+    }
+
+    private void SaatSec(string saat) => secilenSaat = saat;
+
+    private void RandevuOlustur()
+    {
+        if (seciliBerber == null || string.IsNullOrWhiteSpace(yeniMusteri) || string.IsNullOrEmpty(secilenSaat)) return;
+
+        var saatParca = int.Parse(secilenSaat.Split(':')[0]);
+        var randevuZamani = DateTime.Today.AddHours(saatParca);
+
+        aktifRandevum = new Randevu
+        {
+            MusteriAdi = yeniMusteri,
+            Telefon = yeniTelefon,
+            RandevuTarihi = randevuZamani,
+            OnaylandiMi = false
+        };
+
+        seciliBerber.RandevuListesi.Add(aktifRandevum);
+        seciliBerber.AktifBosSaatler.Remove(secilenSaat);
+
+        sonRandevuMesaji = $"Tebrikler {yeniMusteri}! {seciliBerber.DukkanAdi} için randevu talebin alındı.";
+        secilenSaat = "";
+        StateHasChanged();
+    }
+
+    private void RandevuyuIptalEt()
+    {
+        if (seciliBerber != null && aktifRandevum != null)
+        {
+            seciliBerber.RandevuListesi.Remove(aktifRandevum);
+
+            string saatStr = aktifRandevum.RandevuTarihi.ToString("HH:mm");
+            if (!seciliBerber.AktifBosSaatler.Contains(saatStr))
+            {
+                seciliBerber.AktifBosSaatler.Add(saatStr);
+            }
+
+            sonRandevuMesaji = "Randevunuz başarıyla iptal edildi.";
+            aktifRandevum = null;
+            StateHasChanged();
+        }
+    }
+}

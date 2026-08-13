@@ -1,0 +1,54 @@
+﻿@using BerberRandevuSistemi.Services
+@inject RandevuServisi Servis
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">BerberRandevuSistemi</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <!-- Randevu Ekranı Herkese Görünür -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Randevu Ekranı
+            </NavLink>
+        </div>
+
+        <!-- Sadece Giriş Yapılmışsa Berber Panelini Göster -->
+        @if (Servis.AktifBerber != null)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="yonetici">
+                    <span class="bi bi-lock-fill-nav-menu" aria-hidden="true"></span> Berber Paneli (@Servis.AktifBerber.DukkanAdi)
+                </NavLink>
+            </div>
+        }
+        else
+        {
+            <!-- Giriş Yapılmamışsa Giriş/Kayıt Linki Gösterelim -->
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="kayit">
+                    <span class="bi bi-person-plus-fill" aria-hidden="true"></span> Giriş / Kayıt Ol
+                </NavLink>
+            </div>
+        }
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}
